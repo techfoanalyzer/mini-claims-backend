@@ -17,7 +17,7 @@ class User(AbstractUser):
         default=Role.FNOL_AGENT,
         help_text="User ka role — access control isi se hota hai",
     )
-    phone_number = models.CharField(max_length=15, blank=True),
+    phone_number = models.CharField(max_length=15, blank=True)
     
     groups = models.ManyToManyField(
         "auth.Group",
