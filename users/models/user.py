@@ -18,6 +18,15 @@ class User(AbstractUser):
         help_text="User ka role — access control isi se hota hai",
     )
     phone_number = models.CharField(max_length=15, blank=True)
+
+    workshop = models.ForeignKey(
+        "claims.Workshop",
+        on_delete=models.SET_NULL,
+        related_name="agents",
+        null=True,
+        blank=True,
+        help_text="Workshop agent ke liye — kaunsi workshop se attached hai",
+    )
     
     groups = models.ManyToManyField(
         "auth.Group",

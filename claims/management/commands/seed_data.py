@@ -11,6 +11,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         password = config("SEED_PASSWORD")
 
+        # --- Workshops ---
         workshops = [
             {"name": "Karachi Motors", "city": "Karachi", "contact_number": "021111222333"},
             {"name": "Lahore Auto Works", "city": "Lahore", "contact_number": "042111444555"},
@@ -22,7 +23,8 @@ class Command(BaseCommand):
             )
             status = "Created" if created else "Exists"
             self.stdout.write(f"  Workshop: {obj.name} — {status}")
-            
+
+        # --- Users (one per role) ---
         users = [
             ("fnol_agent", User.Role.FNOL_AGENT, "03000000001"),
             ("surveyor", User.Role.SURVEYOR, "03000000002"),
@@ -41,5 +43,13 @@ class Command(BaseCommand):
                 self.stdout.write(f"  User: {username} ({role}) — Created")
             else:
                 self.stdout.write(f"  User: {username} ({role}) — Exists")
+
+        # --- Link workshop_agent to first workshop ---
+        first_workshop = Workshop.objects.first()
+        if first_workshop:
+            wa = User.objects.get(username="workshop_agent")
+            wa.workshop = first_workshop
+            wa.save()
+            self.stdout.write(f"  Linked workshop_agent → {first_workshop.name}")
 
         self.stdout.write(self.style.SUCCESS("\nSeed complete."))
