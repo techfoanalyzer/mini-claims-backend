@@ -43,3 +43,18 @@ class PLRSubmitSerializer(serializers.ModelSerializer):
         if value.size > self.MAX_PHOTO_SIZE:
             raise serializers.ValidationError("Photo size must not exceed 5MB.")
         return value
+
+class DecisionSerializer(serializers.Serializer):
+    """Review/approve decisions ke liye. Validation: decision must be in allowed list."""
+
+    decision = serializers.CharField()
+    remarks = serializers.CharField(required=False, allow_blank=True, default="")
+
+    ALLOWED_DECISIONS = {"forward", "send_back", "approve"}
+
+    def validate_decision(self, value):
+        if value not in self.ALLOWED_DECISIONS:
+            raise serializers.ValidationError(
+                "Invalid decision. Use 'forward'/'send_back' or 'approve'/'send_back'."
+            )
+        return value

@@ -5,8 +5,8 @@ from rest_framework.views import APIView
 
 from claims.enums import ClaimResponse
 from claims.models import Claim, PreliminaryLossReport
-from claims.permissions import IsSurveyor
-from claims.serializers import ClaimDetailSerializer, PLRSubmitSerializer
+from claims.permissions import IsApprover, IsReviewer, IsSurveyor
+from claims.serializers import ( ClaimDetailSerializer, DecisionSerializer, PLRSubmitSerializer,)
 from core.services import notify, transition_status
 
 
@@ -102,4 +102,144 @@ class PLRSubmitView(APIView):
                 "data": ClaimDetailSerializer(claim).data,
             },
             status=status.HTTP_201_CREATED if not is_resubmission else status.HTTP_200_OK,
+        )
+
+
+
+class PLRReviewView(APIView):
+    """
+    POST /api/claims/{pk}/plr/review/  — reviewer forwards or sends back.
+    Body: {"decision": "forward"|"send_back", "remarks": "..."}
+    """
+
+    permission_classes = [IsAuthenticated, IsReviewer]
+
+    def post(self, request, pk):
+        try:
+            claim = Claim.objects.get(pk=pk)
+        except Claim.DoesNotExist:
+            return Response(
+                {"error": ClaimResponse.CLAIM_404_NOT_FOUND},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if claim.status != Claim.Status.PLR_SUBMITTED:
+            return Response(
+                {"error": ClaimResponse.CLAIM_400_WRONG_STATUS},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = DecisionSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"error": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        decision = serializer.validated_data["decision"]
+        remarks = serializer.validated_data["remarks"]
+
+        if decision == "forward":
+            new_status = Claim.Status.PLR_REVIEWED
+            message = ClaimResponse.PLR_REVIEWED
+        elif decision == "send_back":
+            new_status = Claim.Status.PLR_SENT_BACK
+            message = ClaimResponse.PLR_SENT_BACK
+        else:
+            return Response(
+                {"error": ClaimResponse.CLAIM_400_INVALID_DECISION},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        transition_status(
+            claim=claim,
+            to_status=new_status,
+            changed_by=request.user,
+            remarks=remarks or f"Reviewer decision: {decision}.",
+        )
+
+        # Send back → surveyor ko email
+        if decision == "send_back" and claim.surveyor:
+            notify(
+                claim.surveyor.email,
+                f"PLR sent back for {claim.claim_number}",
+                f"Reviewer sent back PLR for claim {claim.claim_number}. "
+                f"Remarks: {remarks or '(no remarks)'}",
+            )
+
+        return Response(
+            {
+                "details": message,
+                "data": ClaimDetailSerializer(claim).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PLRApproveView(APIView):
+    """
+    POST /api/claims/{pk}/plr/approve/  — approver approves or sends back.
+    Body: {"decision": "approve"|"send_back", "remarks": "..."}
+    """
+
+    permission_classes = [IsAuthenticated, IsApprover]
+
+    def post(self, request, pk):
+        try:
+            claim = Claim.objects.get(pk=pk)
+        except Claim.DoesNotExist:
+            return Response(
+                {"error": ClaimResponse.CLAIM_404_NOT_FOUND},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if claim.status != Claim.Status.PLR_REVIEWED:
+            return Response(
+                {"error": ClaimResponse.CLAIM_400_WRONG_STATUS},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = DecisionSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"error": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        decision = serializer.validated_data["decision"]
+        remarks = serializer.validated_data["remarks"]
+
+        if decision == "approve":
+            new_status = Claim.Status.PLR_APPROVED
+            message = ClaimResponse.PLR_APPROVED
+        elif decision == "send_back":
+            new_status = Claim.Status.PLR_SENT_BACK
+            message = ClaimResponse.PLR_SENT_BACK
+        else:
+            return Response(
+                {"error": ClaimResponse.CLAIM_400_INVALID_DECISION},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        transition_status(
+            claim=claim,
+            to_status=new_status,
+            changed_by=request.user,
+            remarks=remarks or f"Approver decision: {decision}.",
+        )
+
+        if decision == "send_back" and claim.surveyor:
+            notify(
+                claim.surveyor.email,
+                f"PLR sent back for {claim.claim_number}",
+                f"Approver sent back PLR for claim {claim.claim_number}. "
+                f"Remarks: {remarks or '(no remarks)'}",
+            )
+
+        return Response(
+            {
+                "details": message,
+                "data": ClaimDetailSerializer(claim).data,
+            },
+            status=status.HTTP_200_OK,
         )

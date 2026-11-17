@@ -1,4 +1,8 @@
-from .preliminary_loss_report import PLRDetailSerializer, PLRSubmitSerializer
+from .preliminary_loss_report import (
+    PLRDetailSerializer,
+    PLRSubmitSerializer,
+    DecisionSerializer,
+)
 from .claim_status_history import ClaimStatusHistorySerializer
 from .claim import (
     ClaimCreateSerializer,
@@ -9,6 +13,7 @@ from .claim import (
 __all__ = [
     "PLRDetailSerializer",
     "PLRSubmitSerializer",
+    "DecisionSerializer",
     "ClaimStatusHistorySerializer",
     "ClaimCreateSerializer",
     "ClaimDetailSerializer",
