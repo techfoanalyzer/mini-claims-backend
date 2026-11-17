@@ -1,5 +1,6 @@
 from .claim import ClaimDetailView, ClaimListCreateView
 from .plr import PLRApproveView, PLRReviewView, PLRSubmitView
+from .repair import ClaimCloseView, RepairCompleteView, RepairStartView
 
 __all__ = [
     "ClaimListCreateView",
@@ -7,4 +8,7 @@ __all__ = [
     "PLRSubmitView",
     "PLRReviewView",
     "PLRApproveView",
+    "RepairStartView",
+    "RepairCompleteView",
+    "ClaimCloseView",
 ]
